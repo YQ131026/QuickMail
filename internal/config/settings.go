@@ -13,58 +13,50 @@ const (
 	DefaultPort              = "8080"
 	DefaultConfigPath        = "config/config.json"
 
-	SecretEnvKey        = "MAIL_CONFIG_SECRET"
-	APIKeyEnvKey        = "QUICKMAIL_API_KEY"
-	PortEnvKey          = "PORT"
-	ProviderStoreEnvKey = "QUICKMAIL_PROVIDER_STORE"
-	ConfigFileEnvKey    = "QUICKMAIL_CONFIG_FILE"
+	ConfigFileEnvKey = "QUICKMAIL_CONFIG_FILE"
 )
 
 // Settings 聚合服务运行所需的核心配置。
 type Settings struct {
-	ProviderStorePath string
-	APIKey            string
-	Secret            string
-	Port              string
-}
-
-type fileSettings struct {
 	ProviderStorePath string `json:"provider_store_path"`
 	APIKey            string `json:"api_key"`
+	Secret            string `json:"secret"`
 	Port              string `json:"port"`
 }
 
-// LoadSettings 从环境变量加载配置，提供统一入口。
+// LoadSettings 仅从 JSON 配置文件加载核心配置。
 func LoadSettings() (Settings, error) {
-	secret := os.Getenv(SecretEnvKey)
-	if secret == "" {
-		return Settings{}, fmt.Errorf("%s environment variable is required", SecretEnvKey)
+	path := strings.TrimSpace(os.Getenv(ConfigFileEnvKey))
+	if path == "" {
+		path = DefaultConfigPath
 	}
 
-	fs, err := readFileSettings()
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return Settings{}, err
+		return Settings{}, fmt.Errorf("read config file %s: %w", path, err)
 	}
 
-	providerStore := firstNonEmpty(
-		os.Getenv(ProviderStoreEnvKey),
-		fs.ProviderStorePath,
-		DefaultProviderStorePath,
-	)
-
-	apiKey := os.Getenv(APIKeyEnvKey)
-	if apiKey == "" {
-		apiKey = fs.APIKey
+	var cfg Settings
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return Settings{}, fmt.Errorf("parse config file %s: %w", path, err)
 	}
 
-	port := firstNonEmpty(os.Getenv(PortEnvKey), fs.Port, DefaultPort)
+	cfg.ProviderStorePath = strings.TrimSpace(cfg.ProviderStorePath)
+	if cfg.ProviderStorePath == "" {
+		cfg.ProviderStorePath = DefaultProviderStorePath
+	}
 
-	return Settings{
-		ProviderStorePath: providerStore,
-		APIKey:            apiKey,
-		Secret:            secret,
-		Port:              port,
-	}, nil
+	cfg.Port = strings.TrimSpace(cfg.Port)
+	if cfg.Port == "" {
+		cfg.Port = DefaultPort
+	}
+
+	cfg.Secret = strings.TrimSpace(cfg.Secret)
+	if cfg.Secret == "" {
+		return Settings{}, errors.New("config secret must not be empty")
+	}
+
+	return cfg, nil
 }
 
 // ListenAddr 返回可直接用于 Gin 的监听地址。
@@ -78,39 +70,4 @@ func (s Settings) ListenAddr() string {
 	}
 
 	return ":" + s.Port
-}
-
-func readFileSettings() (fileSettings, error) {
-	path := strings.TrimSpace(os.Getenv(ConfigFileEnvKey))
-	if path == "" {
-		path = DefaultConfigPath
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return fileSettings{}, nil
-		}
-		return fileSettings{}, fmt.Errorf("read config file %s: %w", path, err)
-	}
-
-	if len(data) == 0 {
-		return fileSettings{}, nil
-	}
-
-	var fs fileSettings
-	if err := json.Unmarshal(data, &fs); err != nil {
-		return fileSettings{}, fmt.Errorf("parse config file %s: %w", path, err)
-	}
-
-	return fs, nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }

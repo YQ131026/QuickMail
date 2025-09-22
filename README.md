@@ -5,21 +5,18 @@ QuickMail is a Go + Gin HTTP service that manages SMTP providers and delivers em
 ## Prerequisites
 
 - Go 1.22+
-- Environment variable `MAIL_CONFIG_SECRET` set to a 16, 24, or 32 byte secret used to encrypt provider credentials.
-- Optional environment variable `QUICKMAIL_API_KEY` to require clients to send `X-API-Key`.
-- Optional environment variable `QUICKMAIL_PROVIDER_STORE` to override the default `data/providers.json` store location.
-- Optional environment variable `QUICKMAIL_CONFIG_FILE` to specify another config file (default `config/config.json`).
-- Optional `PORT` environment variable to override the default `8080` port (highest priority).
+- 配置 `config/config.json`，为服务提供所有运行所需的设置。
 
 ## Running
 
+1. 编辑 `config/config.json`，确保 `secret` 为 16/24/32 字节，用于加密 SMTP 凭证。
+2. 运行服务：
+
 ```bash
-export MAIL_CONFIG_SECRET="your-32-byte-secret-here"
-export QUICKMAIL_API_KEY="example-key"
-export QUICKMAIL_PROVIDER_STORE="/opt/providers.json"
-export QUICKMAIL_CONFIG_FILE="/opt/quickmail/config.json"
 go run ./cmd/quickmail
 ```
+
+若需要使用其他配置文件路径，可设置环境变量 `QUICKMAIL_CONFIG_FILE` 指向新的 JSON 文件。
 
 Provider configuration is stored in `data/providers.json` with passwords encrypted at rest. The file is created automatically on first run.
 
@@ -29,11 +26,10 @@ Provider configuration is stored in `data/providers.json` with passwords encrypt
 {
   "provider_store_path": "data/providers.json",
   "api_key": "",
+  "secret": "0123456789abcdef0123456789abcdef",
   "port": "8080"
 }
 ```
-
-环境变量会覆盖配置文件中的字段，优先级顺序为：显式环境变量 > 配置文件 > 默认值。
 
 ## API Overview
 
