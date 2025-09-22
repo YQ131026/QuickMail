@@ -7,6 +7,7 @@ QuickMail is a Go + Gin HTTP service that manages SMTP providers and delivers em
 - Go 1.22+
 - Environment variable `MAIL_CONFIG_SECRET` set to a 16, 24, or 32 byte secret used to encrypt provider credentials.
 - Optional environment variable `QUICKMAIL_API_KEY` to require clients to send `X-API-Key`.
+- Optional environment variable `QUICKMAIL_PROVIDER_STORE` to override the default `data/providers.json` store location.
 - Optional `PORT` environment variable to override the default `8080` port.
 
 ## Running
@@ -14,6 +15,7 @@ QuickMail is a Go + Gin HTTP service that manages SMTP providers and delivers em
 ```bash
 export MAIL_CONFIG_SECRET="your-32-byte-secret-here"
 export QUICKMAIL_API_KEY="example-key"
+export QUICKMAIL_PROVIDER_STORE="/opt/providers.json"
 go run ./cmd/quickmail
 ```
 
