@@ -1,0 +1,5 @@
+{
+  "provider_store_path": "data/providers.json",
+  "api_key": "",
+  "port": "8080"
+}
