@@ -56,57 +56,56 @@ type Store struct {
 	mu      sync.RWMutex
 	path    string
 	secret  []byte
+	apiKey  string
+	port    string
 	records map[string]providerRecord
 }
 
-func NewStore(path string, secret []byte) (*Store, error) {
+func NewStore(settings Settings) (*Store, error) {
+	secret := []byte(settings.Secret)
 	if len(secret) == 0 {
 		return nil, errors.New("secret must not be empty")
 	}
 
 	s := &Store{
-		path:    path,
+		path:    settings.ConfigPath,
 		secret:  secret,
+		apiKey:  settings.APIKey,
+		port:    settings.Port,
 		records: make(map[string]providerRecord),
 	}
 
-	if err := s.load(); err != nil {
-		return nil, err
+	needsFlush := false
+	for _, rec := range settings.providers {
+		if rec.Name == "" {
+			continue
+		}
+
+		if _, err := crypto.Decrypt(secret, rec.Password); err != nil {
+			encrypted, encErr := crypto.Encrypt(secret, rec.Password)
+			if encErr != nil {
+				return nil, encErr
+			}
+			rec.Password = encrypted
+			needsFlush = true
+		}
+
+		s.records[rec.Name] = rec
+	}
+
+	if needsFlush {
+		if err := s.flush(); err != nil {
+			return nil, err
+		}
 	}
 
 	return s, nil
 }
 
-func (s *Store) load() error {
+func (s *Store) flush() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		return err
-	}
-
-	data, err := os.ReadFile(s.path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return s.flushLocked()
-		}
-		return err
-	}
-
-	if len(data) == 0 {
-		return nil
-	}
-
-	var list []providerRecord
-	if err := json.Unmarshal(data, &list); err != nil {
-		return err
-	}
-
-	for _, rec := range list {
-		s.records[rec.Name] = rec
-	}
-
-	return nil
+	return s.flushLocked()
 }
 
 func (s *Store) flushLocked() error {
@@ -115,8 +114,19 @@ func (s *Store) flushLocked() error {
 		list = append(list, rec)
 	}
 
-	data, err := json.MarshalIndent(list, "", "  ")
+	cfg := fileConfig{
+		APIKey:    s.apiKey,
+		Secret:    string(s.secret),
+		Port:      s.port,
+		Providers: list,
+	}
+
+	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
 		return err
 	}
 

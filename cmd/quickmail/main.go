@@ -17,7 +17,7 @@ func main() {
 		logger.Fatalf("failed to load settings: %v", err)
 	}
 
-	store, err := config.NewStore(settings.ProviderStorePath, []byte(settings.Secret))
+	store, err := config.NewStore(settings)
 	if err != nil {
 		logger.Fatalf("failed to initialize provider store: %v", err)
 	}

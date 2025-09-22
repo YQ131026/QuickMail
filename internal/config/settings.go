@@ -9,19 +9,26 @@ import (
 )
 
 const (
-	DefaultProviderStorePath = "data/providers.json"
-	DefaultPort              = "8080"
-	DefaultConfigPath        = "config/config.json"
+	DefaultPort       = "8080"
+	DefaultConfigPath = "config/config.json"
 
 	ConfigFileEnvKey = "QUICKMAIL_CONFIG_FILE"
 )
 
 // Settings 聚合服务运行所需的核心配置。
 type Settings struct {
-	ProviderStorePath string `json:"provider_store_path"`
-	APIKey            string `json:"api_key"`
-	Secret            string `json:"secret"`
-	Port              string `json:"port"`
+	ConfigPath string
+	APIKey     string
+	Secret     string
+	Port       string
+	providers  []providerRecord
+}
+
+type fileConfig struct {
+	APIKey    string           `json:"api_key"`
+	Secret    string           `json:"secret"`
+	Port      string           `json:"port"`
+	Providers []providerRecord `json:"providers"`
 }
 
 // LoadSettings 仅从 JSON 配置文件加载核心配置。
@@ -36,27 +43,28 @@ func LoadSettings() (Settings, error) {
 		return Settings{}, fmt.Errorf("read config file %s: %w", path, err)
 	}
 
-	var cfg Settings
+	var cfg fileConfig
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return Settings{}, fmt.Errorf("parse config file %s: %w", path, err)
 	}
 
-	cfg.ProviderStorePath = strings.TrimSpace(cfg.ProviderStorePath)
-	if cfg.ProviderStorePath == "" {
-		cfg.ProviderStorePath = DefaultProviderStorePath
+	secret := strings.TrimSpace(cfg.Secret)
+	if err := validateSecret(secret); err != nil {
+		return Settings{}, err
 	}
 
-	cfg.Port = strings.TrimSpace(cfg.Port)
-	if cfg.Port == "" {
-		cfg.Port = DefaultPort
+	port := strings.TrimSpace(cfg.Port)
+	if port == "" {
+		port = DefaultPort
 	}
 
-	cfg.Secret = strings.TrimSpace(cfg.Secret)
-	if cfg.Secret == "" {
-		return Settings{}, errors.New("config secret must not be empty")
-	}
-
-	return cfg, nil
+	return Settings{
+		ConfigPath: path,
+		APIKey:     strings.TrimSpace(cfg.APIKey),
+		Secret:     secret,
+		Port:       port,
+		providers:  cfg.Providers,
+	}, nil
 }
 
 // ListenAddr 返回可直接用于 Gin 的监听地址。
@@ -70,4 +78,17 @@ func (s Settings) ListenAddr() string {
 	}
 
 	return ":" + s.Port
+}
+
+func validateSecret(secret string) error {
+	if secret == "" {
+		return errors.New("config secret must not be empty")
+	}
+
+	switch len([]byte(secret)) {
+	case 16, 24, 32:
+		return nil
+	default:
+		return errors.New("config secret must be 16, 24, or 32 bytes")
+	}
 }

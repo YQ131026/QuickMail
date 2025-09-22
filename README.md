@@ -18,18 +18,30 @@ go run ./cmd/quickmail
 
 若需要使用其他配置文件路径，可设置环境变量 `QUICKMAIL_CONFIG_FILE` 指向新的 JSON 文件。
 
-Provider configuration is stored in `data/providers.json` with passwords encrypted at rest. The file is created automatically on first run.
+首次启动时，QuickMail 会读取 `config/config.json` 并自动将其中的 SMTP 密码加密回写，确保凭证落盘即为密文。
 
 基础配置位于 `config/config.json`，示例：
 
 ```json
 {
-  "provider_store_path": "data/providers.json",
   "api_key": "",
   "secret": "0123456789abcdef0123456789abcdef",
-  "port": "8080"
+  "port": "8080",
+  "providers": [
+    {
+      "name": "gmail",
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "username": "your-account@gmail.com",
+      "password": "your-app-password",
+      "from": "your-account@gmail.com",
+      "use_tls": true
+    }
+  ]
 }
 ```
+
+`providers` 数组中可以维护多个 SMTP 服务商（如 SendGrid、企业邮箱等）。密码字段可直接写明文，服务启动后会自动加密并覆盖原值。
 
 ## API Overview
 

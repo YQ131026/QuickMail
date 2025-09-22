@@ -1,6 +1,16 @@
 {
-  "provider_store_path": "data/providers.json",
   "api_key": "",
   "secret": "0123456789abcdef0123456789abcdef",
-  "port": "8080"
+  "port": "8080",
+  "providers": [
+    {
+      "name": "gmail",
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "username": "your-account@gmail.com",
+      "password": "your-app-password",
+      "from": "your-account@gmail.com",
+      "use_tls": true
+    }
+  ]
 }
